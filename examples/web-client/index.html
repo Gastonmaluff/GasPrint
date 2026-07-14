@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GasPrint Web Client Demo</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main>
+      <section class="panel">
+        <h1>GasPrint Web Client</h1>
+        <p>Demo local para consultar health, listar impresoras y enviar una prueba de impresion.</p>
+        <label>
+          URL local
+          <input id="baseUrl" value="http://127.0.0.1:38472" />
+        </label>
+        <label>
+          Token
+          <input id="token" type="password" placeholder="Bearer token de GasPrint" />
+        </label>
+        <div class="actions">
+          <button id="healthBtn">Health</button>
+          <button id="printersBtn">Listar impresoras</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Impresion</h2>
+        <label>
+          Impresora
+          <select id="printer">
+            <option value="FTX TDR058U">FTX TDR058U</option>
+          </select>
+        </label>
+        <label>
+          Texto
+          <textarea id="text" rows="6">Hola Mundo desde demo web</textarea>
+        </label>
+        <button id="printBtn">Enviar impresion</button>
+      </section>
+
+      <section class="panel">
+        <h2>Respuesta</h2>
+        <pre id="output">Sin solicitudes todavia.</pre>
+      </section>
+    </main>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
