@@ -11,6 +11,7 @@
     "build": "npm run typecheck && vite build && tsc -p tsconfig.electron.json",
     "dist": "npm run build && electron-builder --win nsis",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "test": "npm run build && node --test \"tests/**/*.test.mjs\"",
     "lint": "eslint .",
     "start": "npm run build && electron .",
     "smoke": "npm run build && electron . --smoke-test --enable-logging",

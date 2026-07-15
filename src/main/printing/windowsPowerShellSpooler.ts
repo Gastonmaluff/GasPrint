@@ -3,6 +3,7 @@ import { rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { PrintJob } from '../../shared/types/printing.js';
+import { mmToHundredths, xOffsetHundredths } from './thermalMetrics.js';
 
 const POWERSHELL_PRINT_SCRIPT = String.raw`
 $ErrorActionPreference = 'Stop'
@@ -31,72 +32,105 @@ $leftOffsetMm = [double]$json.leftOffsetMm
 $rightMarginMm = [double]$json.rightMarginMm
 $feedAfterPrintMm = [double]$json.feedAfterPrintMm
 if ($feedAfterPrintMm -lt 0) { $feedAfterPrintMm = 0 }
-$paperWidthHundredths = 228
-if ($paperWidth -eq 80) {
-  $paperWidthHundredths = 315
-}
-
-$doc.DefaultPageSettings.PaperSize = New-Object System.Drawing.Printing.PaperSize('Receipt', $paperWidthHundredths, 1400)
-$doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0, 0, 0, 0)
-$doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController
+$mmToHundredths = 100.0 / 25.4
+$paperWidthHundredths = [int][Math]::Round($paperWidthMm * $mmToHundredths)
+$usableWidth = [Math]::Max(40, [int][Math]::Round(($printableWidthMm - $rightMarginMm) * $mmToHundredths))
+$sepHeight = [Math]::Max(6, [int][Math]::Round(2 * $mmToHundredths))
+$lineSpacing = 2
+$topMargin = [int][Math]::Round(1 * $mmToHundredths)
 
 $script:lines = @($json.lines)
+
+# Font/format builders shared by the measurement pass and the print pass.
+function New-LineFont($line) {
+  $baseSize = 8.5
+  if ($paperWidth -eq 80) { $baseSize = 9.5 }
+  if ([string]$line.size -eq 'large') { $baseSize = $baseSize * 1.25 }
+  if ([string]$line.size -eq 'double') { $baseSize = $baseSize * 1.65 }
+  $style = [System.Drawing.FontStyle]::Regular
+  if ($line.bold -eq $true) { $style = [System.Drawing.FontStyle]::Bold }
+  return New-Object System.Drawing.Font('Courier New', $baseSize, $style)
+}
+function New-LineFormat($line) {
+  $format = New-Object System.Drawing.StringFormat
+  $format.Trimming = [System.Drawing.StringTrimming]::None
+  if ([string]$line.align -eq 'center') {
+    $format.Alignment = [System.Drawing.StringAlignment]::Center
+  } elseif ([string]$line.align -eq 'right') {
+    $format.Alignment = [System.Drawing.StringAlignment]::Far
+  } else {
+    $format.Alignment = [System.Drawing.StringAlignment]::Near
+  }
+  return $format
+}
+function Measure-LineHeight($graphics, $line) {
+  if ($line.separator -eq $true) { return $sepHeight }
+  $text = [string]$line.text
+  if ([string]::IsNullOrEmpty($text)) { $text = ' ' }
+  $font = New-LineFont $line
+  $format = New-LineFormat $line
+  $size = $graphics.MeasureString($text, $font, [int]$usableWidth, $format)
+  $font.Dispose()
+  $format.Dispose()
+  return [int][Math]::Ceiling($size.Height)
+}
+
+# --- Measurement pass: total content height so the physical page length follows the feed ---
+$measureBmp = New-Object System.Drawing.Bitmap 1, 1
+$measureGraphics = [System.Drawing.Graphics]::FromImage($measureBmp)
+$measureGraphics.PageUnit = [System.Drawing.GraphicsUnit]::Display
+$contentHeight = 0
+foreach ($line in $script:lines) {
+  $contentHeight += (Measure-LineHeight $measureGraphics $line) + $lineSpacing
+}
+$measureGraphics.Dispose()
+$measureBmp.Dispose()
+
+$feedHundredths = [int]$json.feedHundredths
+if ($feedHundredths -lt 0) { $feedHundredths = [int][Math]::Round($feedAfterPrintMm * $mmToHundredths) }
+$pageHeightHundredths = [Math]::Max(120, $topMargin + $contentHeight + $feedHundredths)
+
+$doc.DefaultPageSettings.PaperSize = New-Object System.Drawing.Printing.PaperSize('GasPrintReceipt', $paperWidthHundredths, [int]$pageHeightHundredths)
+$doc.DefaultPageSettings.Margins = New-Object System.Drawing.Printing.Margins(0, 0, 0, 0)
+$doc.OriginAtMargins = $false
+$doc.PrintController = New-Object System.Drawing.Printing.StandardPrintController
+
 $script:index = 0
-$script:charactersPerLine = [int]$json.charactersPerLine
-$script:feedLines = [int]$json.feedLines
+$script:xOffset = [int]$json.xOffsetHundredths
+$script:yStart = $topMargin
 
 $doc.add_PrintPage({
   param($sender, $event)
-
-  $pageBounds = $event.PageBounds
-  $mmToHundredths = 100 / 25.4
-  $x = [Math]::Max(0, [Math]::Round(($leftOffsetMm * $mmToHundredths) - $event.PageSettings.HardMarginX))
-  $y = [Math]::Max(0, [Math]::Round(1 * $mmToHundredths - $event.PageSettings.HardMarginY))
-  $usableWidth = [Math]::Max(40, [Math]::Round(($printableWidthMm - $rightMarginMm) * $mmToHundredths))
-  $bottom = $pageBounds.Height - 10
+  $event.Graphics.PageUnit = [System.Drawing.GraphicsUnit]::Display
+  $x = $script:xOffset
+  $y = $script:yStart
+  $bottom = $event.PageBounds.Height
 
   while ($script:index -lt $script:lines.Count) {
     $line = $script:lines[$script:index]
-    $text = [string]$line.text
+
     if ($line.separator -eq $true) {
-      $text = ''.PadLeft($script:charactersPerLine, '=')
+      $penY = $y + [int]($sepHeight / 2)
+      $pen = New-Object System.Drawing.Pen([System.Drawing.Color]::Black, 1)
+      $event.Graphics.DrawLine($pen, [float]$x, [float]$penY, [float]($x + $usableWidth), [float]$penY)
+      $pen.Dispose()
+      $y += $sepHeight + $lineSpacing
+      $script:index += 1
+      continue
     }
 
-    $baseSize = 8.5
-    if ($paperWidth -eq 80) {
-      $baseSize = 9.5
-    }
-    if ([string]$line.size -eq 'large') {
-      $baseSize = $baseSize * 1.25
-    }
-    if ([string]$line.size -eq 'double') {
-      $baseSize = $baseSize * 1.65
-    }
-
-    $style = [System.Drawing.FontStyle]::Regular
-    if ($line.bold -eq $true) {
-      $style = [System.Drawing.FontStyle]::Bold
-    }
-
-    $font = New-Object System.Drawing.Font('Courier New', $baseSize, $style)
-    $format = New-Object System.Drawing.StringFormat
-    $format.Trimming = [System.Drawing.StringTrimming]::None
-    $format.FormatFlags = [System.Drawing.StringFormatFlags]::LineLimit
-    if ([string]$line.align -eq 'center') {
-      $format.Alignment = [System.Drawing.StringAlignment]::Center
-    } elseif ([string]$line.align -eq 'right') {
-      $format.Alignment = [System.Drawing.StringAlignment]::Far
-    } else {
-      $format.Alignment = [System.Drawing.StringAlignment]::Near
-    }
-
-    $rect = New-Object System.Drawing.RectangleF($x, $y, $usableWidth, 1000)
+    $text = [string]$line.text
+    if ([string]::IsNullOrEmpty($text)) { $text = ' ' }
+    $font = New-LineFont $line
+    $format = New-LineFormat $line
+    $measured = $event.Graphics.MeasureString($text, $font, [int]$usableWidth, $format)
+    $blockHeight = [int][Math]::Ceiling($measured.Height)
+    $rect = New-Object System.Drawing.RectangleF([float]$x, [float]$y, [float]$usableWidth, [float]$blockHeight)
     $event.Graphics.DrawString($text, $font, [System.Drawing.Brushes]::Black, $rect, $format)
-    $lineHeight = [Math]::Ceiling($font.GetHeight($event.Graphics) * 1.25)
     $font.Dispose()
     $format.Dispose()
 
-    $y += $lineHeight
+    $y += $blockHeight + $lineSpacing
     $script:index += 1
 
     if ($y -gt $bottom) {
@@ -105,11 +139,6 @@ $doc.add_PrintPage({
     }
   }
 
-  $feedPx = [Math]::Round($feedAfterPrintMm * $mmToHundredths)
-  if ($feedPx -lt ($script:feedLines * 16)) {
-    $feedPx = $script:feedLines * 16
-  }
-  $y += $feedPx
   $event.HasMorePages = $false
 })
 
@@ -129,6 +158,9 @@ export async function printWithWindowsSpooler(job: PrintJob): Promise<void> {
       leftOffsetMm: job.leftOffsetMm,
       rightMarginMm: job.rightMarginMm,
       feedAfterPrintMm: job.feedAfterPrintMm,
+      // Precomputed geometry (single source of truth, unit-tested in thermalMetrics).
+      xOffsetHundredths: xOffsetHundredths(job.leftOffsetMm ?? 0),
+      feedHundredths: mmToHundredths(Math.max(0, job.feedAfterPrintMm ?? 0)),
       charactersPerLine: job.charactersPerLine,
       feedLines: job.feedLines,
       lines: job.lines

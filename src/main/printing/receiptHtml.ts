@@ -44,6 +44,12 @@ export function buildReceiptHtml(job: PrintJob): string {
         white-space: pre-wrap;
         overflow-wrap: anywhere;
       }
+      .sep {
+        width: 100%;
+        height: 0;
+        border-top: 1px solid black;
+        margin: 1mm 0;
+      }
       .left { text-align: left; }
       .center { text-align: center; }
       .right { text-align: right; }
@@ -59,12 +65,15 @@ export function buildReceiptHtml(job: PrintJob): string {
 </html>`;
 }
 
-function renderLine(line: ReceiptLine, charactersPerLine: number): string {
+function renderLine(line: ReceiptLine, _charactersPerLine: number): string {
+  // A separator renders as a single physical rule (one line), never a wrapping string of characters.
+  if (line.separator) {
+    return '<div class="sep" aria-hidden="true"></div>';
+  }
   const classNames = ['line', line.align, line.bold ? 'bold' : '', line.size !== 'normal' ? line.size : '']
     .filter(Boolean)
     .join(' ');
-  const text = line.separator ? '='.repeat(charactersPerLine) : line.text;
-  return `<div class="${classNames}">${escapeHtml(text || ' ')}</div>`;
+  return `<div class="${classNames}">${escapeHtml(line.text || ' ')}</div>`;
 }
 
 function escapeHtml(value: string): string {

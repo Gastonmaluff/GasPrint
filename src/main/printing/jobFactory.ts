@@ -11,25 +11,25 @@ export function createTestJob(printerName: string, charactersPerLine = 32, feedL
   const width = Math.min(29, Math.max(20, charactersPerLine - 1));
   const line = createTestTicketLineFactory(width);
   const lines: ReceiptLine[] = [
-    line.separator('='),
+    line.separator(),
     line.center('GASPRINT', { bold: true }),
     line.center('Ticket de prueba'),
-    line.separator('='),
+    line.separator(),
     line.blank(),
     line.left(`Imp: ${compactPrinterName(printerName, width - 5)}`),
     line.left(`Fecha: ${formatDate(now)}`),
     line.left(`Hora : ${formatTime(now)}`),
     line.blank(),
     line.columns('Producto', 'Total'),
-    line.separator('-'),
+    line.separator(),
     line.columns('Texto normal', 'OK'),
     line.columns('Texto negrita', 'OK', { bold: true }),
-    line.separator('-'),
+    line.separator(),
     line.center('Windows recibio'),
     line.center('el trabajo'),
     line.blank(),
     line.center('GasPrint operativo'),
-    line.separator('=')
+    line.separator()
   ];
 
   return validatePrintJob({
@@ -49,7 +49,6 @@ export function createTestJob(printerName: string, charactersPerLine = 32, feedL
 export function createCalibrationJob(printerName: string, profile: PrinterProfile): PrintJob {
   const now = new Date();
   const width = Math.max(20, profile.charactersPerLine ?? 30);
-  const separator = '='.repeat(width);
   const rule = buildCalibrationRule(width);
   const cross = buildCenterCross(width);
   const values: Array<[string, string]> = [
@@ -60,10 +59,10 @@ export function createCalibrationJob(printerName: string, profile: PrinterProfil
     ['Caracteres/linea', `${profile.charactersPerLine ?? 30}`]
   ];
   const lines: ReceiptLine[] = [
-    { text: separator, align: 'left', bold: true, size: 'normal' },
+    { text: '', align: 'left', bold: false, size: 'normal', separator: true },
     { text: 'GASPRINT', align: 'center', bold: true, size: 'normal' },
     { text: 'Ticket de Calibracion', align: 'center', bold: false, size: 'normal' },
-    { text: separator, align: 'left', bold: true, size: 'normal' },
+    { text: '', align: 'left', bold: false, size: 'normal', separator: true },
     { text: '', align: 'left', bold: false, size: 'normal' },
     { text: rule, align: 'center', bold: false, size: 'normal' },
     { text: '', align: 'left', bold: false, size: 'normal' },
@@ -85,9 +84,9 @@ export function createCalibrationJob(printerName: string, profile: PrinterProfil
     { text: `Fecha: ${formatDate(now)}`, align: 'left', bold: false, size: 'normal' },
     { text: `Hora : ${formatTime(now)}`, align: 'left', bold: false, size: 'normal' },
     { text: '', align: 'left', bold: false, size: 'normal' },
-    { text: '-'.repeat(width), align: 'left', bold: false, size: 'normal' },
+    { text: '', align: 'left', bold: false, size: 'normal', separator: true },
     { text: 'Cortar debajo de esta linea', align: 'center', bold: false, size: 'normal' },
-    { text: '-'.repeat(width), align: 'left', bold: false, size: 'normal' }
+    { text: '', align: 'left', bold: false, size: 'normal', separator: true }
   ];
 
   return validatePrintJob({
@@ -142,7 +141,7 @@ export function createLabJob(printerName: string, lab: LabState): PrintJob {
 
 interface TestTicketLineFactory {
   blank(): ReceiptLine;
-  separator(char: string): ReceiptLine;
+  separator(): ReceiptLine;
   left(text: string, options?: LineOptions): ReceiptLine;
   center(text: string, options?: LineOptions): ReceiptLine;
   right(text: string, options?: LineOptions): ReceiptLine;
@@ -158,7 +157,8 @@ function createTestTicketLineFactory(width: number): TestTicketLineFactory {
   });
   return {
     blank: () => make(''),
-    separator: (char: string) => make(char.repeat(width)),
+    // A separator is a semantic block; each engine draws exactly one physical rule (never a string of '=').
+    separator: () => ({ text: '', align: 'left', bold: false, size: 'normal', separator: true }),
     left: (text: string, options: LineOptions = {}) => make(fitText(text, width), { ...options, align: 'left' }),
     center: (text: string, options: LineOptions = {}) => make(fitText(text, width), { ...options, align: 'center' }),
     right: (text: string, options: LineOptions = {}) => make(fitText(text, width), { ...options, align: 'right' }),

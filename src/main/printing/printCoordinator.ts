@@ -1,6 +1,7 @@
 import type { DataStore } from '../storage/dataStore.js';
 import type { PrintEngine } from './printEngine.js';
 import type { PrintHistoryEntry, PrintJob, PrintResult } from '../../shared/types/printing.js';
+import { logPrintEnd, logPrintStart } from '../diagnostics/printLog.js';
 
 export interface PrintContext {
   requestId?: string;
@@ -40,9 +41,31 @@ export async function printAndRecord(store: DataStore, engine: PrintEngine, job:
     effectiveProfile
   };
 
+  logPrintStart({
+    jobId: job.id,
+    template: job.type,
+    source: job.origin,
+    printerName: job.printerName,
+    requestedProfile: pendingEntry.requestedProfile ?? {},
+    effectiveProfile,
+    blockCount: job.lines.length,
+    requestedFeedAfterPrintMm: job.feedAfterPrintMm
+  });
+
   await store.addHistory(pendingEntry);
   const result = await engine.print(job);
   const completedAt = new Date().toISOString();
+
+  logPrintEnd({
+    jobId: job.id,
+    engineRequested: 'electron',
+    engineUsed: result.engine,
+    fallbackUsed: result.fallbackUsed,
+    spoolerAcknowledged: result.spoolerAcknowledged,
+    printAttemptCount: 1,
+    durationMs: result.durationMs,
+    status: result.status
+  });
   await store.updateHistory({
     ...pendingEntry,
     completedAt,

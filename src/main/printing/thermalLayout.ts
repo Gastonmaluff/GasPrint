@@ -54,12 +54,8 @@ export function getProfileForJob(job: PrintJob, profiles: PrinterProfile[]): Pri
 
 function layoutLine(line: ReceiptLine, contentWidth: number, profile: PrinterProfile): ReceiptLine[] {
   if (line.separator) {
-    return [
-      {
-        ...line,
-        text: withMargins('='.repeat(contentWidth), profile)
-      }
-    ];
+    // A separator is a block; engines draw one physical rule. Never expand to a string of '='.
+    return [{ ...line, text: '', separator: true }];
   }
 
   const wrapped = wrapWords(line.text, contentWidth);
