@@ -11,18 +11,24 @@ export function ReceiptPreview({ lab }: ReceiptPreviewProps) {
     <section className="preview-panel">
       <div className="section-heading">
         <div>
-          <h2>Vista previa</h2>
-          <p>Aproximada; puede variar segun driver, fuente y firmware.</p>
+          <h2>Vista previa aproximada</h2>
+          <p>El resultado puede variar segun driver, fuente y firmware de la impresora.</p>
         </div>
       </div>
-      <div className="receipt-preview" style={{ maxWidth: lab.paperWidth === 58 ? 300 : 380 }}>
-        {lines.map((line, index) => (
-          <PreviewLine key={`${line.text}-${index}`} line={line} charactersPerLine={lab.charactersPerLine} />
-        ))}
-        {Array.from({ length: lab.feedLines }).map((_, index) => (
-          <div key={`feed-${index}`} className="preview-feed">&nbsp;</div>
-        ))}
+      <div className="preview-frame">
+        <div className="receipt-preview" style={{ maxWidth: lab.paperWidth === 58 ? 300 : 380 }}>
+          {lines.map((line, index) => (
+            <PreviewLine key={`${line.text}-${index}`} line={line} charactersPerLine={lab.charactersPerLine} />
+          ))}
+          {Array.from({ length: lab.feedLines }).map((_, index) => (
+            <div key={`feed-${index}`} className="preview-feed">&nbsp;</div>
+          ))}
+        </div>
       </div>
+      <span className="preview-note">
+        <span className="status-dot warn" />
+        Vista previa aproximada &middot; ancho {lab.paperWidth} mm
+      </span>
     </section>
   );
 }

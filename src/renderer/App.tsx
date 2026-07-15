@@ -9,6 +9,7 @@ import { HistoryPage } from './pages/HistoryPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { createLabPrintPayload, gasPrintApi } from './services/gasPrintApi';
 import { useAsyncAction } from './hooks/useAsyncAction';
+import { GasPrintLogo } from './components/branding/GasPrintLogo';
 
 const initialData: AppData = {
   settings: { ...DEFAULT_SETTINGS },
@@ -32,6 +33,7 @@ export function App() {
   const [printers, setPrinters] = useState<PrinterInfo[]>([]);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsInfo>();
   const [loaded, setLoaded] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const { busy, message, setMessage, run } = useAsyncAction();
 
   const effectivePrinterName = useMemo(() => {
@@ -216,15 +218,23 @@ export function App() {
   const content = renderPage();
 
   return (
-    <div className="app-shell">
-      <Sidebar active={page} onChange={setPage} />
+    <div className={collapsed ? 'app-shell collapsed' : 'app-shell'}>
+      <Sidebar
+        active={page}
+        collapsed={collapsed}
+        onChange={setPage}
+        onToggleCollapse={() => setCollapsed((value) => !value)}
+      />
       <main className="content-shell">
         <header className="topbar">
-          <div>
-            <span>{loaded ? 'Entorno local conectado' : 'Cargando entorno local'}</span>
-            <strong>{selectedPrinter?.displayName ?? 'Sin impresora seleccionada'}</strong>
+          <div className="topbar-status">
+            <span className={`status-dot ${loaded ? 'good' : 'warn'}`} aria-hidden="true" />
+            <div>
+              <span className="eyebrow">{loaded ? 'Entorno local conectado' : 'Cargando entorno local'}</span>
+              <strong>{selectedPrinter?.displayName ?? 'Sin impresora seleccionada'}</strong>
+            </div>
           </div>
-          {busy && <span className="activity">Procesando...</span>}
+          {busy && <span className="activity">Procesando</span>}
         </header>
         {message && (
           <div className="notice" role="status">
@@ -239,7 +249,12 @@ export function App() {
 
   function renderPage() {
     if (!loaded) {
-      return <div className="empty-state">Inicializando GasPrint...</div>;
+      return (
+        <div className="empty-state">
+          <GasPrintLogo height={34} />
+          <span>Inicializando el entorno local...</span>
+        </div>
+      );
     }
 
     if (page === 'home') {

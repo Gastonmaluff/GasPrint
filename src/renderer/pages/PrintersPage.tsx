@@ -41,15 +41,18 @@ export function PrintersPage({ printers, selectedPrinterName, onRefresh, onSelec
       </div>
 
       <section className="toolbar">
-        <label className="search-box">
-          <Search size={17} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar impresora" />
-        </label>
-        <div className="segmented">
-          <button className={filter === 'all' ? 'active' : ''} type="button" onClick={() => setFilter('all')}>Todas</button>
-          <button className={filter === 'physical' ? 'active' : ''} type="button" onClick={() => setFilter('physical')}>Fisicas</button>
-          <button className={filter === 'virtual' ? 'active' : ''} type="button" onClick={() => setFilter('virtual')}>Virtuales</button>
+        <div className="toolbar-left">
+          <label className="search-box">
+            <Search size={17} />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar impresora" aria-label="Buscar impresora" />
+          </label>
+          <div className="segmented">
+            <button className={filter === 'all' ? 'active' : ''} type="button" onClick={() => setFilter('all')}>Todas</button>
+            <button className={filter === 'physical' ? 'active' : ''} type="button" onClick={() => setFilter('physical')}>Fisicas</button>
+            <button className={filter === 'virtual' ? 'active' : ''} type="button" onClick={() => setFilter('virtual')}>Virtuales</button>
+          </div>
         </div>
+        <span className="result-count">{filtered.length} de {printers.length} impresoras</span>
       </section>
 
       <section className="printer-grid">
@@ -65,7 +68,12 @@ export function PrintersPage({ printers, selectedPrinterName, onRefresh, onSelec
         ))}
       </section>
 
-      {filtered.length === 0 && <p className="empty-state">No hay impresoras para los filtros actuales.</p>}
+      {filtered.length === 0 && (
+        <div className="empty-state">
+          <strong>Sin resultados</strong>
+          <span>No hay impresoras para los filtros actuales. Proba con "Todas" o actualiza la lista.</span>
+        </div>
+      )}
 
       {detail && (
         <div className="modal-backdrop" role="presentation" onClick={() => setDetail(null)}>

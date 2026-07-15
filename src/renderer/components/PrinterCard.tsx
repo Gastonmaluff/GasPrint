@@ -39,15 +39,20 @@ export function PrinterCard({ printer, selected, onSelect, onPrintTest, onDetail
       </dl>
 
       <div className="card-actions">
-        <button className="secondary-button" type="button" onClick={() => onSelect(printer.name)}>
+        <button
+          className={selected ? 'primary-button' : 'secondary-button'}
+          type="button"
+          onClick={() => onSelect(printer.name)}
+          aria-pressed={selected}
+        >
           <Check size={16} />
-          Seleccionar
+          {selected ? 'Seleccionada' : 'Seleccionar'}
         </button>
         <button className="secondary-button" type="button" onClick={() => onPrintTest(printer.name)}>
           <Send size={16} />
           Prueba
         </button>
-        <button className="icon-button" type="button" onClick={() => onDetails(printer)} title="Ver detalles">
+        <button className="icon-button" type="button" onClick={() => onDetails(printer)} title="Ver detalles" aria-label="Ver detalles">
           <Info size={17} />
         </button>
       </div>
@@ -55,7 +60,7 @@ export function PrinterCard({ printer, selected, onSelect, onPrintTest, onDetail
       {selected && (
         <div className="selected-ribbon">
           <Printer size={15} />
-          Impresora activa en GasPrint
+          Impresora activa
         </div>
       )}
     </article>

@@ -1,6 +1,21 @@
-import { Copy, FolderOpen, KeyRound, Play, RotateCcw, Square } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Copy,
+  Database,
+  FolderOpen,
+  KeyRound,
+  Network,
+  Palette,
+  Play,
+  Power,
+  Printer,
+  RotateCcw,
+  Square,
+  TriangleAlert
+} from 'lucide-react';
 import type { AppData, AppSettings, DiagnosticsInfo, PaperWidth, PrinterInfo, PrinterProfile } from '../../shared/types/printing';
 import { CalibrationPanel } from '../components/CalibrationPanel';
+import { ConfirmationDialog } from '../components/ConfirmationDialog';
 
 interface SettingsPageProps {
   data: AppData;
@@ -37,17 +52,13 @@ export function SettingsPage({
 }: SettingsPageProps) {
   const settings = data.settings;
   const tokenPreview = data.api.token ? `${data.api.token.slice(0, 6)}...${data.api.token.slice(-6)}` : 'No generado';
+  const [confirmReset, setConfirmReset] = useState(false);
 
   return (
     <div className="settings-layout">
+      {/* Apariencia */}
       <section className="settings-panel">
-        <div className="section-heading">
-          <div>
-            <h1>Configuracion</h1>
-            <p>Preferencias persistidas localmente dentro del perfil de la aplicacion.</p>
-          </div>
-        </div>
-
+        <span className="settings-section-label"><Palette size={15} /> Apariencia</span>
         <div className="field-grid two">
           <label>
             Impresora predeterminada GasPrint
@@ -57,6 +68,7 @@ export function SettingsPage({
                 <option key={printer.name} value={printer.name}>{printer.displayName}</option>
               ))}
             </select>
+            <span className="field-hint">Se usa por defecto para pruebas y calibracion.</span>
           </label>
           <label>
             Tema
@@ -64,9 +76,14 @@ export function SettingsPage({
               <option value="dark">Oscuro</option>
               <option value="light">Claro</option>
             </select>
+            <span className="field-hint">Cambia la apariencia clara u oscura de la interfaz.</span>
           </label>
         </div>
+      </section>
 
+      {/* Impresion */}
+      <section className="settings-panel">
+        <span className="settings-section-label"><Printer size={15} /> Impresion</span>
         <div className="field-grid three">
           <label>
             Ancho predeterminado
@@ -90,7 +107,11 @@ export function SettingsPage({
             <input type="number" min={0} max={10} value={settings.feedLines} onChange={(event) => onSettingsChange({ feedLines: Number(event.target.value) })} />
           </label>
         </div>
+      </section>
 
+      {/* Inicio y comportamiento */}
+      <section className="settings-panel">
+        <span className="settings-section-label"><Power size={15} /> Inicio y comportamiento</span>
         <label className="toggle wide">
           <input
             type="checkbox"
@@ -99,28 +120,23 @@ export function SettingsPage({
           />
           Iniciar GasPrint con Windows
         </label>
-
         <label className="toggle wide">
           <input
             type="checkbox"
             checked={settings.minimizeToTray}
             onChange={(event) => onSettingsChange({ minimizeToTray: event.target.checked })}
           />
-          Cerrar ventana minimizando a bandeja
+          Cerrar ventana minimizando a la bandeja
         </label>
-
         <div className="quick-actions">
           <button className="secondary-button" type="button" onClick={onOpenDataFolder}>
             <FolderOpen size={18} />
             Abrir carpeta de datos
           </button>
-          <button className="danger-button" type="button" onClick={onReset}>
-            <RotateCcw size={18} />
-            Restablecer configuracion
-          </button>
         </div>
       </section>
 
+      {/* Calibracion */}
       <CalibrationPanel
         profiles={data.printerProfiles}
         printerName={selectedPrinterName}
@@ -129,8 +145,9 @@ export function SettingsPage({
         onPrintCalibration={onPrintCalibration}
       />
 
+      {/* API local */}
       <section className="settings-panel">
-        <h2>API local</h2>
+        <span className="settings-section-label"><Network size={15} /> API local</span>
         <p className="muted-text">Escucha solo en 127.0.0.1. No compartas el token en logs, repositorios ni interfaces publicas.</p>
         <div className="field-grid two">
           <label>
@@ -170,7 +187,7 @@ export function SettingsPage({
         <label>
           Origenes permitidos
           <textarea
-            rows={5}
+            rows={4}
             value={data.api.allowedOrigins.join('\n')}
             onChange={(event) => onApiChange({ allowedOrigins: event.target.value.split(/\r?\n/) })}
           />
@@ -182,18 +199,43 @@ export function SettingsPage({
         </dl>
       </section>
 
+      {/* Datos y diagnostico */}
       <section className="settings-panel">
-        <h2>Version y diagnostico</h2>
+        <span className="settings-section-label"><Database size={15} /> Datos y diagnostico</span>
         <dl className="detail-list">
-          <div><dt>Version</dt><dd>{diagnostics?.version ?? '0.1.0'}</dd></div>
+          <div><dt>Version</dt><dd>{diagnostics?.version ?? '0.2.0'}</dd></div>
           <div><dt>Electron</dt><dd>{diagnostics?.electronVersion ?? 'No disponible'}</dd></div>
           <div><dt>Chrome</dt><dd>{diagnostics?.chromeVersion ?? 'No disponible'}</dd></div>
           <div><dt>Node</dt><dd>{diagnostics?.nodeVersion ?? 'No disponible'}</dd></div>
           <div><dt>Plataforma</dt><dd>{diagnostics?.platform ?? 'No disponible'}</dd></div>
           <div><dt>Datos</dt><dd>{diagnostics?.dataPath ?? 'No disponible'}</dd></div>
-          <div><dt>API local futura</dt><dd>{diagnostics?.localApiPrepared ? 'Arquitectura preparada' : 'No preparada'}</dd></div>
+          <div><dt>API local</dt><dd>{diagnostics?.localApiPrepared ? 'Arquitectura preparada' : 'No preparada'}</dd></div>
         </dl>
       </section>
+
+      {/* Zona de peligro */}
+      <section className="settings-panel danger-zone">
+        <span className="settings-section-label" style={{ color: 'var(--bad)' }}><TriangleAlert size={15} /> Zona de peligro</span>
+        <p className="muted-text">Acciones sensibles. La configuracion local no se comparte y estas acciones no se pueden deshacer.</p>
+        <div className="quick-actions">
+          <button className="danger-button" type="button" onClick={() => setConfirmReset(true)}>
+            <RotateCcw size={18} />
+            Restablecer configuracion
+          </button>
+        </div>
+      </section>
+
+      <ConfirmationDialog
+        open={confirmReset}
+        title="Restablecer configuracion"
+        message="Se restauraran los valores por defecto de la aplicacion (tema, impresion, API e inicio). Los perfiles de calibracion y el historial se regeneran. Esta accion no se puede deshacer."
+        confirmLabel="Restablecer"
+        onConfirm={() => {
+          setConfirmReset(false);
+          onReset();
+        }}
+        onCancel={() => setConfirmReset(false)}
+      />
     </div>
   );
 }
