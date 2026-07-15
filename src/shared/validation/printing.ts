@@ -26,6 +26,19 @@ export function clampInteger(value: unknown, min: number, max: number, fallback:
   return Math.min(max, Math.max(min, Math.round(numberValue)));
 }
 
+/**
+ * Clamp a decimal value to [min, max] and snap it to the nearest `step`.
+ * Used for the physical thermal-calibration fields (millimetres).
+ */
+export function clampDecimal(value: unknown, min: number, max: number, fallback: number, step = 0.5): number {
+  const numberValue = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return fallback;
+  }
+  const clamped = Math.min(max, Math.max(min, numberValue));
+  return Math.round(clamped / step) * step;
+}
+
 export function sanitizeText(value: unknown, maxLength = 4000): string {
   if (typeof value !== 'string') {
     return '';
@@ -82,14 +95,24 @@ export function sanitizeApiSettings(settings: Partial<ApiSettings>): ApiSettings
 }
 
 export function sanitizePrinterProfile(profile: Partial<PrinterProfile>): PrinterProfile {
-  const paperWidth = isPaperWidth(profile.paperWidth) ? profile.paperWidth : DEFAULT_PRINTER_PROFILE.paperWidth;
+  const paperWidthCandidate = profile.paperWidth ?? profile.paperWidthMm;
+  const paperWidth = isPaperWidth(paperWidthCandidate) ? paperWidthCandidate : DEFAULT_PRINTER_PROFILE.paperWidth;
+  const printableWidthMm = clampDecimal(profile.printableWidthMm, 35, paperWidth, paperWidth === 58 ? 49 : 72, 0.5);
+  const leftOffsetMm = clampDecimal(profile.leftOffsetMm, -5, 5, DEFAULT_PRINTER_PROFILE.leftOffsetMm, 0.5);
+  const rightMarginMm = clampDecimal(profile.rightMarginMm, 0, 10, DEFAULT_PRINTER_PROFILE.rightMarginMm, 0.5);
   return {
     printerName: sanitizePrinterName(profile.printerName),
     paperWidth,
-    charactersPerLine: clampInteger(profile.charactersPerLine, 24, 64, paperWidth === 58 ? 30 : 42),
+    paperWidthMm: paperWidth,
+    printableWidthMm,
+    leftOffsetMm,
+    rightMarginMm,
+    feedAfterPrintMm: clampDecimal(profile.feedAfterPrintMm, 0, 40, DEFAULT_PRINTER_PROFILE.feedAfterPrintMm, 0.5),
+    charactersPerLine: clampInteger(profile.charactersPerLine, 20, 64, paperWidth === 58 ? 30 : 42),
     marginLeftChars: clampInteger(profile.marginLeftChars, 0, 8, DEFAULT_PRINTER_PROFILE.marginLeftChars),
     marginRightChars: clampInteger(profile.marginRightChars, 0, 8, DEFAULT_PRINTER_PROFILE.marginRightChars),
-    feedLines: clampInteger(profile.feedLines, 0, 10, DEFAULT_PRINTER_PROFILE.feedLines)
+    feedLines: clampInteger(profile.feedLines, 0, 12, DEFAULT_PRINTER_PROFILE.feedLines),
+    updatedAt: typeof profile.updatedAt === 'string' && profile.updatedAt ? profile.updatedAt : new Date().toISOString()
   };
 }
 
@@ -148,6 +171,11 @@ export function validatePrintJob(job: Partial<PrintJob>): PrintJob {
     type,
     origin,
     paperWidth,
+    paperWidthMm: paperWidth,
+    printableWidthMm: clampDecimal(job.printableWidthMm, 35, paperWidth, paperWidth === 58 ? 49 : 72, 0.5),
+    leftOffsetMm: clampDecimal(job.leftOffsetMm, -5, 5, 0, 0.5),
+    rightMarginMm: clampDecimal(job.rightMarginMm, 0, 10, 0, 0.5),
+    feedAfterPrintMm: clampDecimal(job.feedAfterPrintMm, 0, 40, 0, 0.5),
     charactersPerLine: clampInteger(job.charactersPerLine, 24, 64, paperWidth === 58 ? 32 : 42),
     feedLines: clampInteger(job.feedLines, 0, 10, DEFAULT_SETTINGS.feedLines),
     marginLeftChars: clampInteger(job.marginLeftChars, 0, 8, 0),

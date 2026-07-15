@@ -14,7 +14,12 @@ export function applyThermalLayout(job: PrintJob, profiles: PrinterProfile[]): L
     profile,
     job: {
       ...job,
-      paperWidth: profile.paperWidth,
+      paperWidth: profile.paperWidth ?? profile.paperWidthMm,
+      paperWidthMm: profile.paperWidthMm ?? profile.paperWidth,
+      printableWidthMm: profile.printableWidthMm,
+      leftOffsetMm: profile.leftOffsetMm,
+      rightMarginMm: profile.rightMarginMm,
+      feedAfterPrintMm: profile.feedAfterPrintMm,
       charactersPerLine: profile.charactersPerLine,
       marginLeftChars: profile.marginLeftChars,
       marginRightChars: profile.marginRightChars,
@@ -34,10 +39,16 @@ export function getProfileForJob(job: PrintJob, profiles: PrinterProfile[]): Pri
   return {
     printerName: job.printerName,
     paperWidth,
+    paperWidthMm: paperWidth,
+    printableWidthMm: paperWidth === 58 ? 49 : 72,
+    leftOffsetMm: 0,
+    rightMarginMm: paperWidth === 58 ? 3 : 4,
+    feedAfterPrintMm: 18,
     charactersPerLine: paperWidth === 58 ? Math.min(job.charactersPerLine, 30) : Math.min(job.charactersPerLine, 42),
     marginLeftChars: paperWidth === 58 ? 1 : 1,
     marginRightChars: paperWidth === 58 ? 1 : 1,
-    feedLines: job.feedLines
+    feedLines: job.feedLines,
+    updatedAt: ''
   };
 }
 

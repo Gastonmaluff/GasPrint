@@ -16,6 +16,7 @@ export async function printAndRecord(store: DataStore, engine: PrintEngine, job:
     throw new Error(`La impresora no existe o no esta disponible en Windows: ${job.printerName}`);
   }
 
+  const effectiveProfile = data.printerProfiles.find((profile) => profile.printerName === job.printerName);
   const pendingEntry: PrintHistoryEntry = {
     id: job.id,
     createdAt: job.createdAt,
@@ -27,7 +28,16 @@ export async function printAndRecord(store: DataStore, engine: PrintEngine, job:
     summary: job.summary,
     requestId: context.requestId,
     clientOrigin: context.clientOrigin,
-    job
+    job,
+    requestedProfile: {
+      paperWidthMm: job.paperWidthMm ?? job.paperWidth,
+      printableWidthMm: job.printableWidthMm,
+      leftOffsetMm: job.leftOffsetMm,
+      rightMarginMm: job.rightMarginMm,
+      feedAfterPrintMm: job.feedAfterPrintMm,
+      charactersPerLine: job.charactersPerLine
+    },
+    effectiveProfile
   };
 
   await store.addHistory(pendingEntry);

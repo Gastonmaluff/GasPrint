@@ -21,6 +21,16 @@ if (-not $doc.PrinterSettings.IsValid) {
 }
 
 $paperWidth = [int]$json.paperWidth
+$paperWidthMm = [double]$json.paperWidthMm
+if ($paperWidthMm -le 0) { $paperWidthMm = [double]$paperWidth }
+$printableWidthMm = [double]$json.printableWidthMm
+if ($printableWidthMm -le 0) {
+  if ($paperWidth -eq 80) { $printableWidthMm = 72 } else { $printableWidthMm = 49 }
+}
+$leftOffsetMm = [double]$json.leftOffsetMm
+$rightMarginMm = [double]$json.rightMarginMm
+$feedAfterPrintMm = [double]$json.feedAfterPrintMm
+if ($feedAfterPrintMm -lt 0) { $feedAfterPrintMm = 0 }
 $paperWidthHundredths = 228
 if ($paperWidth -eq 80) {
   $paperWidthHundredths = 315
@@ -39,9 +49,10 @@ $doc.add_PrintPage({
   param($sender, $event)
 
   $pageBounds = $event.PageBounds
-  $x = 4
-  $y = 4
-  $usableWidth = [Math]::Max(40, $pageBounds.Width - 8)
+  $mmToHundredths = 100 / 25.4
+  $x = [Math]::Max(0, [Math]::Round(($leftOffsetMm * $mmToHundredths) - $event.PageSettings.HardMarginX))
+  $y = [Math]::Max(0, [Math]::Round(1 * $mmToHundredths - $event.PageSettings.HardMarginY))
+  $usableWidth = [Math]::Max(40, [Math]::Round(($printableWidthMm - $rightMarginMm) * $mmToHundredths))
   $bottom = $pageBounds.Height - 10
 
   while ($script:index -lt $script:lines.Count) {
@@ -94,7 +105,11 @@ $doc.add_PrintPage({
     }
   }
 
-  $y += ($script:feedLines * 16)
+  $feedPx = [Math]::Round($feedAfterPrintMm * $mmToHundredths)
+  if ($feedPx -lt ($script:feedLines * 16)) {
+    $feedPx = $script:feedLines * 16
+  }
+  $y += $feedPx
   $event.HasMorePages = $false
 })
 
@@ -109,6 +124,11 @@ export async function printWithWindowsSpooler(job: PrintJob): Promise<void> {
     JSON.stringify({
       printerName: job.printerName,
       paperWidth: job.paperWidth,
+      paperWidthMm: job.paperWidthMm ?? job.paperWidth,
+      printableWidthMm: job.printableWidthMm,
+      leftOffsetMm: job.leftOffsetMm,
+      rightMarginMm: job.rightMarginMm,
+      feedAfterPrintMm: job.feedAfterPrintMm,
       charactersPerLine: job.charactersPerLine,
       feedLines: job.feedLines,
       lines: job.lines
@@ -133,13 +153,22 @@ async function runPowerShell(payloadPath: string): Promise<void> {
       }
     });
 
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error('Timeout del fallback de impresion despues de 20 segundos.'));
+    }, 20000);
+
     const stdout: string[] = [];
     const stderr: string[] = [];
 
     child.stdout.on('data', (chunk: Buffer) => stdout.push(chunk.toString('utf8')));
     child.stderr.on('data', (chunk: Buffer) => stderr.push(chunk.toString('utf8')));
-    child.on('error', reject);
+    child.on('error', (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
     child.on('close', (code) => {
+      clearTimeout(timer);
       if (code === 0) {
         resolve();
         return;

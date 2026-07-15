@@ -2,9 +2,13 @@ import { APP_NAME } from '../../shared/constants/app.js';
 import type { PrintJob, ReceiptLine } from '../../shared/types/printing.js';
 
 export function buildReceiptHtml(job: PrintJob): string {
-  const widthMm = job.paperWidth;
+  const widthMm = job.paperWidthMm ?? job.paperWidth;
+  const printableWidthMm = job.printableWidthMm ?? (widthMm === 58 ? 49 : 72);
+  const leftOffsetMm = job.leftOffsetMm ?? 0;
+  const rightMarginMm = job.rightMarginMm ?? 0;
+  const feedAfterPrintMm = job.feedAfterPrintMm ?? Math.max(0, (job.feedLines ?? 0) * 4);
   const body = job.lines.map((line) => renderLine(line, job.charactersPerLine)).join('');
-  const feed = Array.from({ length: job.feedLines }, () => '<div class="feed">&nbsp;</div>').join('');
+  const feed = `<div class="feed" aria-hidden="true"></div>`;
 
   return `<!doctype html>
 <html>
@@ -19,7 +23,9 @@ export function buildReceiptHtml(job: PrintJob): string {
         padding: 0;
         background: white;
         color: black;
+        box-sizing: border-box;
       }
+      *, *::before, *::after { box-sizing: border-box; }
       body {
         width: ${widthMm}mm;
         font-family: "Consolas", "Courier New", monospace;
@@ -28,8 +34,11 @@ export function buildReceiptHtml(job: PrintJob): string {
       }
       .receipt {
         box-sizing: border-box;
-        width: ${widthMm}mm;
-        padding: 2mm 2mm 0;
+        width: ${printableWidthMm}mm;
+        max-width: ${Math.max(20, widthMm - rightMarginMm)}mm;
+        margin-left: ${leftOffsetMm}mm;
+        margin-right: ${rightMarginMm}mm;
+        padding: 0;
       }
       .line {
         white-space: pre-wrap;
@@ -41,7 +50,7 @@ export function buildReceiptHtml(job: PrintJob): string {
       .bold { font-weight: 700; }
       .large { font-size: 1.25em; line-height: 1.25; }
       .double { font-size: 1.65em; line-height: 1.2; }
-      .feed { height: 4mm; }
+      .feed { height: ${feedAfterPrintMm}mm; min-height: ${feedAfterPrintMm}mm; }
     </style>
   </head>
   <body>

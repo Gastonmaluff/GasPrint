@@ -41,9 +41,19 @@ export const DEFAULT_API_SETTINGS = {
 } as const;
 
 export const DEFAULT_PRINTER_PROFILE = {
+  printerName: '',
   paperWidth: 58,
-  charactersPerLine: 32,
-  marginLeftChars: 1,
+  paperWidthMm: 58,
+  printableWidthMm: 49,
+  leftOffsetMm: -1,
+  rightMarginMm: 3,
+  feedAfterPrintMm: 18,
+  charactersPerLine: 30,
+  marginLeftChars: 0,
   marginRightChars: 1,
-  feedLines: 4
+  feedLines: 4,
+  updatedAt: ''
 } as const;
+
+/** Seed profile for the reference thermal printer used during development. */
+export const FTX_PROFILE_NAME = 'FTX TDR058U';

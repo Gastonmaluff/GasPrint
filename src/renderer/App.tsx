@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AppData, AppSettings, DiagnosticsInfo, LabState, PrinterInfo } from '../shared/types/printing';
+import type { AppData, AppSettings, DiagnosticsInfo, LabState, PrinterInfo, PrinterProfile } from '../shared/types/printing';
 import { DEFAULT_LAB, DEFAULT_SETTINGS } from '../shared/constants/app';
 import { Sidebar, type PageId } from './components/Sidebar';
 import { HomePage } from './pages/HomePage';
@@ -125,6 +125,29 @@ export function App() {
   async function selectPrinter(printerName: string) {
     await updateSettings({ selectedPrinterName: printerName });
     setMessage(`Impresora seleccionada: ${printerName}`);
+  }
+
+  async function saveProfile(profile: PrinterProfile) {
+    await run(async () => {
+      const nextData = await gasPrintApi.updatePrinterProfile(profile);
+      setData(nextData);
+      return nextData;
+    }, 'Perfil de impresora guardado.');
+  }
+
+  async function printCalibration(profile: PrinterProfile) {
+    if (!profile.printerName) {
+      setMessage('Selecciona una impresora antes de imprimir.');
+      return;
+    }
+    await run(async () => {
+      // Validar y guardar primero; el handler de calibracion vuelve a leer el perfil efectivo persistido.
+      await gasPrintApi.updatePrinterProfile(profile);
+      const result = await gasPrintApi.printCalibration(profile.printerName);
+      const nextData = await gasPrintApi.getData();
+      setData(nextData);
+      return result;
+    }, 'Ticket de calibracion enviado al sistema de impresion de Windows.');
   }
 
   function updateLab(lab: LabState) {
@@ -267,6 +290,8 @@ export function App() {
         data={data}
         printers={printers}
         diagnostics={diagnostics}
+        selectedPrinterName={effectivePrinterName}
+        busy={busy}
         onSettingsChange={(settings) => void updateSettings(settings)}
         onApiChange={(settings) => void updateApi(settings)}
         onRegenerateToken={() => void regenerateToken()}
@@ -274,6 +299,8 @@ export function App() {
         onStopApi={() => void stopApi()}
         onReset={() => void resetSettings()}
         onOpenDataFolder={() => void openDataFolder()}
+        onSaveProfile={(profile) => void saveProfile(profile)}
+        onPrintCalibration={(profile) => void printCalibration(profile)}
       />
     );
   }

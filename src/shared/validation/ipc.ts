@@ -1,5 +1,5 @@
-import type { LabState, PrintJob } from '../types/printing.js';
-import { sanitizeLabState, sanitizePrinterName, validatePrintJob } from './printing.js';
+import type { LabState, PrinterProfile, PrintJob } from '../types/printing.js';
+import { sanitizeLabState, sanitizePrinterName, sanitizePrinterProfile, validatePrintJob } from './printing.js';
 
 export function parsePrinterName(value: unknown): string {
   const printerName = sanitizePrinterName(value);
@@ -21,4 +21,11 @@ export function parsePrintJob(value: unknown): PrintJob {
     throw new Error('Trabajo de impresion invalido.');
   }
   return validatePrintJob(value as Partial<PrintJob>);
+}
+
+export function parsePrinterProfile(value: unknown): PrinterProfile {
+  if (!value || typeof value !== 'object') {
+    throw new Error('Perfil de impresora invalido.');
+  }
+  return sanitizePrinterProfile(value as Partial<PrinterProfile>);
 }

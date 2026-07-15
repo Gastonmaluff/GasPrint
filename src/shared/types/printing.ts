@@ -39,6 +39,12 @@ export interface PrintJob {
   feedLines: number;
   marginLeftChars?: number;
   marginRightChars?: number;
+  /** Physical thermal-calibration fields (millimetres). Optional for backward compatibility. */
+  paperWidthMm?: number;
+  printableWidthMm?: number;
+  leftOffsetMm?: number;
+  rightMarginMm?: number;
+  feedAfterPrintMm?: number;
   title?: string;
   lines: ReceiptLine[];
   createdAt: string;
@@ -76,6 +82,19 @@ export interface PrintHistoryEntry {
   requestId?: string;
   clientOrigin?: string;
   job?: PrintJob;
+  /** Physical calibration values requested by the job (millimetres). */
+  requestedProfile?: RequestedProfile;
+  /** Printer profile actually applied when printing. */
+  effectiveProfile?: PrinterProfile;
+}
+
+export interface RequestedProfile {
+  paperWidthMm?: number;
+  printableWidthMm?: number;
+  leftOffsetMm?: number;
+  rightMarginMm?: number;
+  feedAfterPrintMm?: number;
+  charactersPerLine?: number;
 }
 
 export interface LabState {
@@ -103,10 +122,22 @@ export interface AppSettings {
 export interface PrinterProfile {
   printerName: string;
   paperWidth: PaperWidth;
+  /** Physical width of the paper in millimetres (mirrors paperWidth). */
+  paperWidthMm: number;
+  /** Usable/printable horizontal width in millimetres. */
+  printableWidthMm: number;
+  /** Horizontal offset in millimetres. Negative = left, positive = right. */
+  leftOffsetMm: number;
+  /** Right margin in millimetres. */
+  rightMarginMm: number;
+  /** Physical paper advance after printing, in millimetres. */
+  feedAfterPrintMm: number;
   charactersPerLine: number;
   marginLeftChars: number;
   marginRightChars: number;
   feedLines: number;
+  /** ISO timestamp of the last profile update. */
+  updatedAt: string;
 }
 
 export interface ApiSettings {

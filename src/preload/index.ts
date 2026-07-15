@@ -6,6 +6,7 @@ const api: GasPrintApi = {
   listPrinters: () => ipcRenderer.invoke(IPC_CHANNELS.printersList),
   refreshPrinters: () => ipcRenderer.invoke(IPC_CHANNELS.printersRefresh),
   printTest: (printerName: string) => ipcRenderer.invoke(IPC_CHANNELS.printTest, printerName),
+  printCalibration: (printerName: string) => ipcRenderer.invoke(IPC_CHANNELS.printCalibration, printerName),
   printLab: (job: Omit<PrintJob, 'id' | 'createdAt' | 'summary' | 'origin' | 'type'>) =>
     ipcRenderer.invoke(IPC_CHANNELS.printLab, job),
   repeatJob: (jobId: string) => ipcRenderer.invoke(IPC_CHANNELS.printRepeat, jobId),

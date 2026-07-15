@@ -2,9 +2,10 @@ import { ipcMain, shell } from 'electron';
 import type { DataStore } from '../storage/dataStore.js';
 import type { PrintEngine } from '../printing/printEngine.js';
 import { IPC_CHANNELS } from '../../shared/types/ipc.js';
-import type { ApiSettings, AppSettings, PrintJob, PrinterProfile } from '../../shared/types/printing.js';
-import { parseLabState, parsePrinterName, parsePrintJob } from '../../shared/validation/ipc.js';
-import { createTestJob } from '../printing/jobFactory.js';
+import type { ApiSettings, AppSettings, PrintJob } from '../../shared/types/printing.js';
+import { parseLabState, parsePrinterName, parsePrinterProfile, parsePrintJob } from '../../shared/validation/ipc.js';
+import { sanitizePrinterProfile } from '../../shared/validation/printing.js';
+import { createCalibrationJob, createTestJob } from '../printing/jobFactory.js';
 import { configureStartup, getDiagnostics } from '../diagnostics/diagnostics.js';
 import { printAndRecord } from '../printing/printCoordinator.js';
 import type { LocalApiServer } from '../api/localApiServer.js';
@@ -48,10 +49,7 @@ export function registerIpcHandlers(store: DataStore, engine: PrintEngine, apiSe
   });
 
   ipcMain.handle(IPC_CHANNELS.profileUpdate, async (_event, value: unknown) => {
-    if (!value || typeof value !== 'object') {
-      throw new Error('Perfil de impresora invalido.');
-    }
-    return store.updatePrinterProfile(value as PrinterProfile);
+    return store.updatePrinterProfile(parsePrinterProfile(value));
   });
 
   ipcMain.handle(IPC_CHANNELS.settingsReset, async () => store.reset());
@@ -74,6 +72,16 @@ export function registerIpcHandlers(store: DataStore, engine: PrintEngine, apiSe
     const data = await store.getData();
     const printerName = parsePrinterName(value);
     const job = createTestJob(printerName, data.settings.charactersPerLine, data.settings.feedLines);
+    return printAndRecord(store, engine, job);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.printCalibration, async (_event, value: unknown) => {
+    const data = await store.getData();
+    const printerName = parsePrinterName(value);
+    const profile =
+      data.printerProfiles.find((item) => item.printerName === printerName) ??
+      sanitizePrinterProfile({ printerName });
+    const job = createCalibrationJob(printerName, profile);
     return printAndRecord(store, engine, job);
   });
 

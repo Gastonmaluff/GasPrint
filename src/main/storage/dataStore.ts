@@ -2,7 +2,7 @@ import { app } from 'electron';
 import { randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { DEFAULT_API_SETTINGS, DEFAULT_LAB, DEFAULT_PRINTER_PROFILE, DEFAULT_SETTINGS } from '../../shared/constants/app.js';
+import { DEFAULT_API_SETTINGS, DEFAULT_LAB, DEFAULT_PRINTER_PROFILE, DEFAULT_SETTINGS, FTX_PROFILE_NAME } from '../../shared/constants/app.js';
 import type { ApiSettings, AppData, AppSettings, LabState, PrintHistoryEntry, PrinterProfile } from '../../shared/types/printing.js';
 import { sanitizeApiSettings, sanitizeLabState, sanitizePrinterProfile, sanitizeSettings } from '../../shared/validation/printing.js';
 
@@ -31,6 +31,8 @@ export class DataStore {
       const raw = await readFile(this.filePath, 'utf8');
       const parsed = JSON.parse(raw) as Partial<AppData>;
       this.data = normalizeData(parsed);
+      // Persist immediately so normalized profiles (mm fields, FTX seed) are written back once.
+      await this.persist();
     } catch {
       this.data = normalizeData({});
       await this.persist();
@@ -149,16 +151,30 @@ function normalizeData(data: Partial<AppData>): AppData {
 function normalizeProfiles(value: unknown): PrinterProfile[] {
   const profiles = Array.isArray(value) ? value : [];
   const sanitized = profiles.map((profile) => sanitizePrinterProfile(profile as Partial<PrinterProfile>)).filter((profile) => profile.printerName);
-  if (!sanitized.some((profile) => profile.printerName === 'FTX TDR058U')) {
-    sanitized.unshift({
-      ...DEFAULT_PRINTER_PROFILE,
-      printerName: 'FTX TDR058U',
-      charactersPerLine: 30,
-      marginLeftChars: 1,
-      marginRightChars: 1,
-      feedLines: 4
-    });
+  if (!sanitized.some((profile) => profile.printerName === FTX_PROFILE_NAME)) {
+    sanitized.unshift(
+      sanitizePrinterProfile({
+        ...DEFAULT_PRINTER_PROFILE,
+        printerName: FTX_PROFILE_NAME,
+        feedLines: 5,
+        updatedAt: new Date().toISOString()
+      })
+    );
   }
+  // Keep the reference FTX TDR058U profile pinned to its known-good physical values.
+  sanitized.forEach((profile) => {
+    if (profile.printerName === FTX_PROFILE_NAME) {
+      profile.paperWidth = 58;
+      profile.paperWidthMm = 58;
+      profile.printableWidthMm = profile.printableWidthMm || 49;
+      profile.leftOffsetMm = typeof profile.leftOffsetMm === 'number' ? profile.leftOffsetMm : -1;
+      profile.rightMarginMm = profile.rightMarginMm || 3;
+      profile.feedAfterPrintMm = profile.feedAfterPrintMm || 18;
+      profile.charactersPerLine = Math.min(profile.charactersPerLine || 30, 30);
+      profile.marginLeftChars = 0;
+      profile.marginRightChars = Math.min(profile.marginRightChars ?? 1, 1);
+    }
+  });
   return sanitized.slice(0, 100);
 }
 

@@ -13,6 +13,7 @@ export const IPC_CHANNELS = {
   printersList: 'printers:list',
   printersRefresh: 'printers:refresh',
   printTest: 'print:test',
+  printCalibration: 'print:calibration',
   printLab: 'print:lab',
   printRepeat: 'print:repeat',
   dataGet: 'data:get',
@@ -33,6 +34,7 @@ export interface GasPrintApi {
   listPrinters(): Promise<PrinterInfo[]>;
   refreshPrinters(): Promise<PrinterInfo[]>;
   printTest(printerName: string): Promise<PrintResult>;
+  printCalibration(printerName: string): Promise<PrintResult>;
   printLab(job: Omit<PrintJob, 'id' | 'createdAt' | 'summary' | 'origin' | 'type'>): Promise<PrintResult>;
   repeatJob(jobId: string): Promise<PrintResult>;
   getData(): Promise<AppData>;

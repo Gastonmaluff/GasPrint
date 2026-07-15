@@ -1,10 +1,13 @@
 import { Copy, FolderOpen, KeyRound, Play, RotateCcw, Square } from 'lucide-react';
-import type { AppData, AppSettings, DiagnosticsInfo, PaperWidth, PrinterInfo } from '../../shared/types/printing';
+import type { AppData, AppSettings, DiagnosticsInfo, PaperWidth, PrinterInfo, PrinterProfile } from '../../shared/types/printing';
+import { CalibrationPanel } from '../components/CalibrationPanel';
 
 interface SettingsPageProps {
   data: AppData;
   printers: PrinterInfo[];
   diagnostics?: DiagnosticsInfo;
+  selectedPrinterName: string;
+  busy?: boolean;
   onSettingsChange: (settings: Partial<AppSettings>) => void;
   onApiChange: (settings: Partial<AppData['api']>) => void;
   onRegenerateToken: () => void;
@@ -12,19 +15,25 @@ interface SettingsPageProps {
   onStopApi: () => void;
   onReset: () => void;
   onOpenDataFolder: () => void;
+  onSaveProfile: (profile: PrinterProfile) => void;
+  onPrintCalibration: (profile: PrinterProfile) => void;
 }
 
 export function SettingsPage({
   data,
   printers,
   diagnostics,
+  selectedPrinterName,
+  busy,
   onSettingsChange,
   onApiChange,
   onRegenerateToken,
   onStartApi,
   onStopApi,
   onReset,
-  onOpenDataFolder
+  onOpenDataFolder,
+  onSaveProfile,
+  onPrintCalibration
 }: SettingsPageProps) {
   const settings = data.settings;
   const tokenPreview = data.api.token ? `${data.api.token.slice(0, 6)}...${data.api.token.slice(-6)}` : 'No generado';
@@ -111,6 +120,14 @@ export function SettingsPage({
           </button>
         </div>
       </section>
+
+      <CalibrationPanel
+        profiles={data.printerProfiles}
+        printerName={selectedPrinterName}
+        busy={busy}
+        onSaveProfile={onSaveProfile}
+        onPrintCalibration={onPrintCalibration}
+      />
 
       <section className="settings-panel">
         <h2>API local</h2>
